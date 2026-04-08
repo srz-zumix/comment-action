@@ -1,15 +1,6 @@
 name: Self Test
 on:
   pull_request:
-  workflow_dispatch:
-    inputs:
-      pr-number:
-        description: 'The pull request number'
-        required: true
-      body:
-        description: 'Comment body text'
-        required: false
-        default: 'Test comment from comment-action CI'
 
 permissions: {}
 
@@ -24,6 +15,9 @@ jobs:
         cache:
           - true
           - false
+    env:
+      TEST_GROUP: "${{ github.workflow }}/${{ github.job }}/${{ github.run_id }}/${{ github.run_attempt }}/cache-${{ matrix.cache }}"
+      PR_NUMBER: ${{ github.event.number }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -36,14 +30,196 @@ jobs:
         id: comment
         uses: ./comment-action
         with:
-          pr-number: ${{ github.event.inputs.pr-number || github.event.number }}
-          body: ${{ github.event.inputs.body || 'Test comment from comment-action CI' }}
+          pr-number: ${{ env.PR_NUMBER }}
+          body: 'Test comment from comment-action CI'
           cache: ${{ matrix.cache }}
+          group: ${{ env.TEST_GROUP }}
+      - name: Verify comment posted
+        working-directory: comment-action
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AQUA_POLICY_CONFIG: aqua-policy.yaml
+        run: |
+          RESULT=$(gh-comment-kit review list --group "$TEST_GROUP" "$PR_NUMBER")
+          echo "$RESULT"
+          if echo "$RESULT" | grep -q "no comments found"; then
+            echo "::error::Expected a comment to be posted but none found"
+            exit 1
+          fi
+
+  test-dryrun:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    env:
+      TEST_GROUP: "${{ github.workflow }}/${{ github.job }}/${{ github.run_id }}/${{ github.run_attempt }}"
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: comment-action
+          persist-credentials: false
+      - name: Remove .git
+        run: rm -rf comment-action/.git
+      - name: comment (dryrun)
+        uses: ./comment-action
+        with:
+          pr-number: ${{ env.PR_NUMBER }}
+          body: 'Dry run test'
+          dryrun: true
+          group: ${{ env.TEST_GROUP }}
+      - name: Verify no comment posted
+        working-directory: comment-action
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AQUA_POLICY_CONFIG: aqua-policy.yaml
+        run: |
+          RESULT=$(gh-comment-kit review list --group "$TEST_GROUP" "$PR_NUMBER")
+          echo "$RESULT"
+          if ! echo "$RESULT" | grep -q "no comments found"; then
+            echo "::error::Expected no comments (dryrun) but some were found"
+            exit 1
+          fi
+
+  test-update:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    env:
+      TEST_GROUP: "${{ github.workflow }}/${{ github.job }}/${{ github.run_id }}/${{ github.run_attempt }}"
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: comment-action
+          persist-credentials: false
+      - name: Remove .git
+        run: rm -rf comment-action/.git
+      - name: comment
+        uses: ./comment-action
+        with:
+          pr-number: ${{ env.PR_NUMBER }}
+          body: 'Initial comment'
+          group: ${{ env.TEST_GROUP }}
+      - name: update comment
+        uses: ./comment-action
+        with:
+          pr-number: ${{ env.PR_NUMBER }}
+          body: 'Updated comment'
+          update: true
+          group: ${{ env.TEST_GROUP }}
+      - name: Verify comment updated
+        working-directory: comment-action
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AQUA_POLICY_CONFIG: aqua-policy.yaml
+        run: |
+          RESULT=$(gh-comment-kit review list --group "$TEST_GROUP" "$PR_NUMBER")
+          echo "$RESULT"
+          if echo "$RESULT" | grep -q "no comments found"; then
+            echo "::error::Expected a comment to exist after update but none found"
+            exit 1
+          fi
+          if ! echo "$RESULT" | grep -q "Updated comment"; then
+            echo "::error::Expected comment body to contain 'Updated comment'"
+            exit 1
+          fi
+
+  test-delete:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    env:
+      TEST_GROUP: "${{ github.workflow }}/${{ github.job }}/${{ github.run_id }}/${{ github.run_attempt }}"
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: comment-action
+          persist-credentials: false
+      - name: Remove .git
+        run: rm -rf comment-action/.git
+      - name: comment
+        uses: ./comment-action
+        with:
+          pr-number: ${{ env.PR_NUMBER }}
+          body: 'Initial comment'
+          group: ${{ env.TEST_GROUP }}
+      - name: delete and re-comment
+        uses: ./comment-action
+        with:
+          pr-number: ${{ env.PR_NUMBER }}
+          body: 'After delete comment'
+          delete: true
+          group: ${{ env.TEST_GROUP }}
+      - name: Verify previous comment deleted and new comment posted
+        working-directory: comment-action
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AQUA_POLICY_CONFIG: aqua-policy.yaml
+        run: |
+          RESULT=$(gh-comment-kit review list --group "$TEST_GROUP" "$PR_NUMBER")
+          echo "$RESULT"
+          if echo "$RESULT" | grep -q "no comments found"; then
+            echo "::error::Expected a comment to exist after delete+repost but none found"
+            exit 1
+          fi
+          if ! echo "$RESULT" | grep -q "After delete comment"; then
+            echo "::error::Expected comment body to contain 'After delete comment'"
+            exit 1
+          fi
+
+  test-body-file:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    env:
+      TEST_GROUP: "${{ github.workflow }}/${{ github.job }}/${{ github.run_id }}/${{ github.run_attempt }}"
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: comment-action
+          persist-credentials: false
+      - name: Remove .git
+        run: rm -rf comment-action/.git
+      - name: Create body file
+        run: echo 'Test comment from body file' > /tmp/body.txt
+      - name: comment from file
+        uses: ./comment-action
+        with:
+          pr-number: ${{ env.PR_NUMBER }}
+          body-file: /tmp/body.txt
+          group: ${{ env.TEST_GROUP }}
+      - name: Verify comment from file posted
+        working-directory: comment-action
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AQUA_POLICY_CONFIG: aqua-policy.yaml
+        run: |
+          RESULT=$(gh-comment-kit review list --group "$TEST_GROUP" "$PR_NUMBER")
+          echo "$RESULT"
+          if echo "$RESULT" | grep -q "no comments found"; then
+            echo "::error::Expected a comment to be posted from body file but none found"
+            exit 1
+          fi
+          if ! echo "$RESULT" | grep -q "Test comment from body file"; then
+            echo "::error::Expected comment body to contain 'Test comment from body file'"
+            exit 1
+          fi
 
   ci-status-check:
     runs-on: ubuntu-latest
     needs:
       - test
+      - test-dryrun
+      - test-update
+      - test-delete
+      - test-body-file
     if: failure()
     steps:
       - name: CI Status Check Failed
