@@ -1,0 +1,10 @@
+packages:
+  - type: github_release
+    repo_owner: srz-zumix
+    repo_name: gh-comment-kit
+    description: gh extension for posting trackable comments to pull requests
+    asset: "{{.OS}}-{{.Arch}}"
+    format: raw
+    github_artifact_attestations:
+      signer_workflow: srz-zumix/gh-comment-kit/.github/workflows/release.yml
+    github_immutable_release: true
