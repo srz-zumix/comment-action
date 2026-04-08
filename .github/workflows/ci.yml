@@ -38,7 +38,6 @@ jobs:
         with:
           pr-number: ${{ github.event.inputs.pr-number || github.event.number }}
           body: ${{ github.event.inputs.body || 'Test comment from comment-action CI' }}
-          group: comment-action-ci-${{ matrix.cache }}
           cache: ${{ matrix.cache }}
 
   ci-status-check:

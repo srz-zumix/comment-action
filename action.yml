@@ -20,7 +20,7 @@ inputs:
     required: false
   group:
     description: 'Comment group identifier used to track related comments'
-    default: 'gh-comment-kit'
+    default: ${{ github.workflow }}/${{ github.job }}
     required: false
   path:
     description: 'File path to attach the review comment to'
