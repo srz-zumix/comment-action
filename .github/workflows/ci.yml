@@ -1,0 +1,51 @@
+name: Self Test
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'The pull request number'
+        required: true
+      body:
+        description: 'Comment body text'
+        required: false
+        default: 'Test comment from comment-action CI'
+
+permissions: {}
+
+jobs:
+  test:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cache:
+          - true
+          - false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: comment-action
+          persist-credentials: false
+      - name: Remove .git
+        # Remove .git to prevent the action from using the checkout's git context
+        run: rm -rf comment-action/.git
+      - name: comment
+        id: comment
+        uses: ./comment-action
+        with:
+          pr-number: ${{ github.event.inputs.pr-number || github.event.number }}
+          body: ${{ github.event.inputs.body || 'Test comment from comment-action CI' }}
+          group: comment-action-ci-${{ matrix.cache }}
+          cache: ${{ matrix.cache }}
+
+  ci-status-check:
+    runs-on: ubuntu-latest
+    needs:
+      - test
+    if: failure()
+    steps:
+      - name: CI Status Check Failed
+        run: exit 1

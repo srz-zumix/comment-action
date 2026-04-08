@@ -1,0 +1,149 @@
+name: 'gh-comment-kit Comment Action'
+description: 'Post trackable review comments to pull requests using gh-comment-kit'
+author: 'srz-zumix'
+inputs:
+  repo-token:
+    description: 'The GitHub token used to post comments'
+    default: ''
+    required: false
+  pr-number:
+    description: 'The pull request number'
+    default: ${{ github.event.number }}
+    required: false
+  body:
+    description: 'Comment body text'
+    default: ''
+    required: false
+  body-file:
+    description: 'Path to a file containing the comment body (- for stdin)'
+    default: ''
+    required: false
+  group:
+    description: 'Comment group identifier used to track related comments'
+    default: 'gh-comment-kit'
+    required: false
+  path:
+    description: 'File path to attach the review comment to'
+    default: ''
+    required: false
+  line:
+    description: 'Line number to comment on (requires path)'
+    default: ''
+    required: false
+  update:
+    description: 'Update (edit) the last comment in the group instead of creating a new one'
+    default: false
+    type: boolean
+    required: false
+  delete:
+    description: 'Delete previous comments in the same group before posting'
+    default: false
+    type: boolean
+    required: false
+  resolve:
+    description: 'Resolve previous review comments in the same group'
+    default: false
+    type: boolean
+    required: false
+  truncate:
+    description: 'Truncate the comment body if it exceeds the size limit instead of splitting'
+    default: false
+    type: boolean
+    required: false
+  dryrun:
+    description: 'Print what would be posted without actually posting'
+    default: false
+    type: boolean
+    required: false
+  cache:
+    description: 'Whether or not to use aqua install cache'
+    default: true
+    type: boolean
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: srz-zumix/aqua-installer-cache@b0c06a58d8c2a2c9a7381c7e722675d1f4b68a5c # v0.2.0
+      id: aqua-cache
+      with:
+        working-directory: ${{ github.action_path }}
+        config-file: aqua.yaml
+      if: inputs.cache == 'true'
+    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      with:
+        aqua_version: v2.55.3
+        # policy_allow: aqua-policy.yaml
+        working_directory: ${{ github.action_path }}
+    - name: gh-comment-kit path
+      id: gh-comment-kit
+      shell: bash
+      env:
+        GH_HOST: github.com
+        GH_ENTERPRISE_TOKEN: ""
+        AQUA_POLICY_CONFIG: aqua-policy.yaml
+      run: |
+        export GH_TOKEN="${AQUA_GITHUB_TOKEN:-}"
+        gh-comment-kit --version
+        echo "path=$(aqua which gh-comment-kit)" >> "${GITHUB_OUTPUT}"
+      working-directory: ${{ github.action_path }}
+    - name: Comment
+      id: comment
+      shell: bash
+      env:
+        INPUTS_GITHUB_TOKEN: ${{ inputs.repo-token }}
+        INPUTS_PR_NUMBER: ${{ inputs.pr-number }}
+        INPUTS_BODY: ${{ inputs.body }}
+        INPUTS_BODY_FILE: ${{ inputs.body-file }}
+        INPUTS_GROUP: ${{ inputs.group }}
+        INPUTS_PATH: ${{ inputs.path }}
+        INPUTS_LINE: ${{ inputs.line }}
+        INPUTS_UPDATE: ${{ inputs.update }}
+        INPUTS_DELETE: ${{ inputs.delete }}
+        INPUTS_RESOLVE: ${{ inputs.resolve }}
+        INPUTS_TRUNCATE: ${{ inputs.truncate }}
+        INPUTS_DRYRUN: ${{ inputs.dryrun }}
+        GH_COMMENT_KIT: ${{ steps.gh-comment-kit.outputs.path }}
+      run: |
+        export GH_TOKEN="${INPUTS_GITHUB_TOKEN:-${GH_TOKEN:-${{ github.token }}}}"
+        export GH_ENTERPRISE_TOKEN="${INPUTS_GITHUB_TOKEN:-${GH_ENTERPRISE_TOKEN:-${{ github.token }}}}"
+
+        COMMENT_KIT_OPTIONS=()
+        if [ -n "${INPUTS_BODY}" ]; then
+          COMMENT_KIT_OPTIONS+=(--body "${INPUTS_BODY}")
+        fi
+        if [ -n "${INPUTS_BODY_FILE}" ]; then
+          COMMENT_KIT_OPTIONS+=(--body-file "${INPUTS_BODY_FILE}")
+        fi
+        if [ -n "${INPUTS_GROUP}" ]; then
+          COMMENT_KIT_OPTIONS+=(--group "${INPUTS_GROUP}")
+        fi
+        if [ -n "${INPUTS_PATH}" ]; then
+          COMMENT_KIT_OPTIONS+=(--path "${INPUTS_PATH}")
+        fi
+        if [ -n "${INPUTS_LINE}" ]; then
+          COMMENT_KIT_OPTIONS+=(--line "${INPUTS_LINE}")
+        fi
+        if [ "${INPUTS_UPDATE}" = "true" ]; then
+          COMMENT_KIT_OPTIONS+=(--update)
+        fi
+        if [ "${INPUTS_DELETE}" = "true" ]; then
+          COMMENT_KIT_OPTIONS+=(--delete)
+        fi
+        if [ "${INPUTS_RESOLVE}" = "true" ]; then
+          COMMENT_KIT_OPTIONS+=(--resolve)
+        fi
+        if [ "${INPUTS_TRUNCATE}" = "true" ]; then
+          COMMENT_KIT_OPTIONS+=(--truncate)
+        fi
+        if [ "${INPUTS_DRYRUN}" = "true" ]; then
+          COMMENT_KIT_OPTIONS+=(--dryrun)
+        fi
+        set -x
+        "${GH_COMMENT_KIT}" review comment \
+          ${COMMENT_KIT_OPTIONS[@]+"${COMMENT_KIT_OPTIONS[@]}"} \
+          ${INPUTS_PR_NUMBER}
+
+branding:
+  icon: 'message-square'
+  color: 'gray-dark'
