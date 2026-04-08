@@ -59,7 +59,7 @@ jobs:
 | `pr-number` | The pull request number | `${{ github.event.number }}` | false |
 | `body` | Comment body text | `''` | false |
 | `body-file` | Path to a file containing the comment body (`-` for stdin) | `''` | false |
-| `group` | Comment group identifier used to track related comments | `gh-comment-kit` | false |
+| `group` | Comment group identifier used to track related comments | `${{ github.workflow }}/${{ github.job }}` | false |
 | `path` | File path to attach the review comment to | `''` | false |
 | `line` | Line number to comment on (requires `path`) | `''` | false |
 | `update` | Update (edit) the last comment in the group instead of creating a new one | `false` | false |
