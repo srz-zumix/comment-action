@@ -31,7 +31,7 @@ jobs:
         uses: ./comment-action
         with:
           pr-number: ${{ env.PR_NUMBER }}
-          body: 'Test comment from comment-action CI'
+          body: 'Test comment from comment-action CI (cache: ${{ matrix.cache }})'
           cache: ${{ matrix.cache }}
           group: ${{ env.TEST_GROUP }}
       - name: Verify comment posted
@@ -44,6 +44,10 @@ jobs:
           echo "$RESULT"
           if echo "$RESULT" | grep -q "no comments found"; then
             echo "::error::Expected a comment to be posted but none found"
+            exit 1
+          fi
+          if ! echo "$RESULT" | grep -q "Test comment from comment-action CI (cache: ${{ matrix.cache }})"; then
+            echo "::error::Expected comment body to contain 'Test comment from comment-action CI (cache: ${{ matrix.cache }})'"
             exit 1
           fi
 
