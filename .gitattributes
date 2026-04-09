@@ -1,0 +1,5 @@
+# export settings
+.github/** export-ignore
+*.md export-ignore
+.* export-ignore
+*.yaml export-ignore
