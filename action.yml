@@ -40,6 +40,10 @@ inputs:
     default: false
     type: boolean
     required: false
+  hide:
+    description: 'Hide previous comments in the same group with the specified reason (ABUSE, DUPLICATE, OFF_TOPIC, OUTDATED, RESOLVED, SPAM)'
+    default: ''
+    required: false
   resolve:
     description: 'Resolve previous review comments in the same group'
     default: false
@@ -100,6 +104,7 @@ runs:
         INPUTS_LINE: ${{ inputs.line }}
         INPUTS_UPDATE: ${{ inputs.update }}
         INPUTS_DELETE: ${{ inputs.delete }}
+        INPUTS_HIDE: ${{ inputs.hide }}
         INPUTS_RESOLVE: ${{ inputs.resolve }}
         INPUTS_TRUNCATE: ${{ inputs.truncate }}
         INPUTS_DRYRUN: ${{ inputs.dryrun }}
@@ -129,6 +134,9 @@ runs:
         fi
         if [ "${INPUTS_DELETE}" = "true" ]; then
           COMMENT_KIT_OPTIONS+=(--delete)
+        fi
+        if [ -n "${INPUTS_HIDE}" ]; then
+          COMMENT_KIT_OPTIONS+=(--hide "${INPUTS_HIDE}")
         fi
         if [ "${INPUTS_RESOLVE}" = "true" ]; then
           COMMENT_KIT_OPTIONS+=(--resolve)
