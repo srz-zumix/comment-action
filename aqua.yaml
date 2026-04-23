@@ -9,7 +9,7 @@
 #   - all
 registries:
   - type: standard
-    ref: v4.492.0 # renovate: depName=aquaproj/aqua-registry
+    ref: v4.496.0 # renovate: depName=aquaproj/aqua-registry
   - name: local
     type: local
     path: aqua-registry.yaml
@@ -18,11 +18,11 @@ packages:
   - name: suzuki-shunsuke/pinact@v3.9.0
     tags:
       - dev
-  - name: zizmorcore/zizmor@v1.23.1
+  - name: zizmorcore/zizmor@v1.24.1
     tags:
       - dev
       - ci
-  - name: srz-zumix/gh-comment-kit@v0.2.0
+  - name: srz-zumix/gh-comment-kit@v0.3.0
     registry: local
     tags:
       - dev
